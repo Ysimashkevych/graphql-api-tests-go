@@ -1,3 +1,3 @@
-module graphql-api-tests-go
+module github.com/Ysimashkevych/graphql-api-tests-go
 
 go 1.22

@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"graphql-api-tests-go/gqlclient"
-	"graphql-api-tests-go/queries"
+	"github.com/Ysimashkevych/graphql-api-tests-go/gqlclient"
+	"github.com/Ysimashkevych/graphql-api-tests-go/queries"
 )
 
 // DefaultEndpoint is the public Countries GraphQL API.

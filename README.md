@@ -56,3 +56,13 @@ The trade-off is a little more boilerplate than `assert`/`require`; `testkit` ab
 
 - Live assertions (e.g. capitals, schema types) reflect the Countries API at the time of writing; if the upstream data
   or schema changes, those tests will fail by design, which is the point of a contract check.
+
+## Related projects
+
+- [playwright-ts-framework](https://github.com/Ysimashkevych/playwright-ts-framework): Playwright + TypeScript UI and API framework.
+- [ai-test-triage](https://github.com/Ysimashkevych/ai-test-triage): LLM-assisted triage of Playwright failures.
+- [qa-claude-skills](https://github.com/Ysimashkevych/qa-claude-skills): Claude Code skills for QA, including tests from GraphQL schemas.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

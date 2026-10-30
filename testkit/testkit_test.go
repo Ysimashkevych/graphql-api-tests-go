@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"graphql-api-tests-go/testkit"
+	"github.com/Ysimashkevych/graphql-api-tests-go/testkit"
 )
 
 func TestTypeRefString(t *testing.T) {

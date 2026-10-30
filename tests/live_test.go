@@ -8,9 +8,9 @@ package tests
 import (
 	"testing"
 
-	"graphql-api-tests-go/gqlclient"
-	"graphql-api-tests-go/queries"
-	"graphql-api-tests-go/testkit"
+	"github.com/Ysimashkevych/graphql-api-tests-go/gqlclient"
+	"github.com/Ysimashkevych/graphql-api-tests-go/queries"
+	"github.com/Ysimashkevych/graphql-api-tests-go/testkit"
 )
 
 type country struct {

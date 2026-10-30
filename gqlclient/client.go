@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // DefaultTimeout is applied when no custom HTTP client is supplied.
@@ -100,6 +101,7 @@ type Client struct {
 	http      *http.Client
 	headers   http.Header
 	userAgent string
+	timeout   time.Duration
 }
 
 // Option configures a Client.
@@ -108,8 +110,10 @@ type Option func(*Client)
 // WithHTTPClient replaces the underlying http.Client (e.g. a custom transport).
 func WithHTTPClient(h *http.Client) Option { return func(c *Client) { c.http = h } }
 
-// WithTimeout sets the overall per-request timeout of the default HTTP client.
-func WithTimeout(d time.Duration) Option { return func(c *Client) { c.http.Timeout = d } }
+// WithTimeout sets the overall per-request timeout. It is applied to a copy of
+// the HTTP client, so a client passed via WithHTTPClient is never modified, and
+// the result does not depend on option order.
+func WithTimeout(d time.Duration) Option { return func(c *Client) { c.timeout = d } }
 
 // WithHeader sets a header sent with every request (e.g. Authorization).
 func WithHeader(key, value string) Option { return func(c *Client) { c.headers.Set(key, value) } }
@@ -127,6 +131,11 @@ func New(endpoint string, opts ...Option) *Client {
 	}
 	for _, o := range opts {
 		o(c)
+	}
+	if c.timeout > 0 {
+		hc := *c.http
+		hc.Timeout = c.timeout
+		c.http = &hc
 	}
 	return c
 }
@@ -200,9 +209,13 @@ func IsHTTPError(err error) (*HTTPError, bool) {
 	return nil, false
 }
 
+// truncate shortens s to at most n bytes without splitting a UTF-8 sequence.
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
 	}
 	return s[:n] + "..."
 }

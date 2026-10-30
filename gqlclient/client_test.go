@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"graphql-api-tests-go/gqlclient"
+	"github.com/Ysimashkevych/graphql-api-tests-go/gqlclient"
 )
 
 type countryData struct {
@@ -125,5 +125,18 @@ func TestExecuteTimeout(t *testing.T) {
 	c := gqlclient.New(srv.URL, gqlclient.WithTimeout(50*time.Millisecond))
 	if _, err := gqlclient.Execute[map[string]any](context.Background(), c, gqlclient.Request{Query: "{x}"}); err == nil {
 		t.Fatal("expected timeout error")
+	}
+}
+
+func TestWithTimeoutDoesNotModifySharedClient(t *testing.T) {
+	shared := &http.Client{Timeout: time.Minute}
+	for _, opts := range [][]gqlclient.Option{
+		{gqlclient.WithHTTPClient(shared), gqlclient.WithTimeout(time.Second)},
+		{gqlclient.WithTimeout(time.Second), gqlclient.WithHTTPClient(shared)},
+	} {
+		gqlclient.New("http://example.invalid", opts...)
+		if shared.Timeout != time.Minute {
+			t.Fatalf("shared client timeout changed to %v", shared.Timeout)
+		}
 	}
 }
