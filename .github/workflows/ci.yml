@@ -8,6 +8,9 @@ on:
     - cron: "0 6 * * 1"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   offline:
     runs-on: ubuntu-latest
@@ -20,9 +23,10 @@ jobs:
       - run: make test
 
   live:
-    # Depends on a third-party public API, so it never blocks the offline job.
+    # Depends on a third-party public API: advisory on push/PR, but the weekly
+    # schedule and manual runs fail visibly so upstream drift gets noticed.
     runs-on: ubuntu-latest
-    continue-on-error: true
+    continue-on-error: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

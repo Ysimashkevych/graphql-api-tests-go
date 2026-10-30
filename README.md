@@ -43,12 +43,12 @@ make test-live   # live tests against the public API (-tags live)
 make lint        # go vet + gofmt check (+ golangci-lint if installed)
 ```
 
-Use `GRAPHQL_API_URL` to point the live tests at another endpoint. CI runs offline tests on every push/PR and the live
-suite as a non-blocking job (including a weekly schedule), since it depends on a third-party service.
+Use `GRAPHQL_API_URL` to point the live tests at another endpoint. CI runs offline tests on pushes to `main` and on pull requests. The live suite depends on a third-party service, so it is
+advisory on push/PR and blocking on the weekly schedule and manual runs, where a failure signals upstream drift.
 
 ## Why standard library only
 
-Only `testing` and `net/http/httptest` are used, no testify. The helpers here are small, a failing assertion
+Standard library only, no testify. The helpers here are small, a failing assertion
 reports exactly what is needed, and zero dependencies means no `go.sum`, no supply-chain surface and an easy read for reviewers.
 The trade-off is a little more boilerplate than `assert`/`require`; `testkit` absorbs most of it.
 

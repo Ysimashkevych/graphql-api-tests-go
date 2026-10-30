@@ -24,6 +24,9 @@ import (
 // DefaultTimeout is applied when no custom HTTP client is supplied.
 const DefaultTimeout = 15 * time.Second
 
+// MaxResponseBytes caps how much of a response body is read.
+const MaxResponseBytes = 10 << 20
+
 // Request is a GraphQL request payload.
 type Request struct {
 	Query         string         `json:"query"`
@@ -166,7 +169,7 @@ func Execute[T any](ctx context.Context, c *Client, req Request) (*Response[T], 
 		return nil, fmt.Errorf("gqlclient: send request: %w", err)
 	}
 	defer httpResp.Body.Close()
-	raw, err := io.ReadAll(httpResp.Body)
+	raw, err := io.ReadAll(io.LimitReader(httpResp.Body, MaxResponseBytes))
 	if err != nil {
 		return nil, fmt.Errorf("gqlclient: read response: %w", err)
 	}
@@ -192,7 +195,12 @@ func Execute[T any](ctx context.Context, c *Client, req Request) (*Response[T], 
 	}
 
 	resp.Errors = envelope.Errors
-	if len(envelope.Data) > 0 {
+	hasData := len(envelope.Data) > 0 && string(envelope.Data) != "null"
+	if !hasData && len(envelope.Errors) == 0 {
+		// The GraphQL spec requires a response to carry "data" or "errors".
+		return resp, fmt.Errorf("gqlclient: response has neither data nor errors: %s", truncate(string(raw), 512))
+	}
+	if hasData {
 		if err := json.Unmarshal(envelope.Data, &resp.Data); err != nil {
 			return resp, fmt.Errorf("gqlclient: decode data: %w", err)
 		}

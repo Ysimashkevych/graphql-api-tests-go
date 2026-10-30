@@ -3,6 +3,8 @@ package gqlclient_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -48,6 +50,8 @@ func TestExecute(t *testing.T) {
 		{name: "graphql errors with 400", status: 400, body: `{"errors":[{"message":"bad"}]}`, wantGQLErr: "bad"},
 		{name: "http 500 without gql body", status: 500, body: `oops`, wantErr: true, wantHTTP: true},
 		{name: "invalid json with 200", status: 200, body: `<html>`, wantErr: true},
+		{name: "neither data nor errors", status: 200, body: `{}`, wantErr: true},
+		{name: "null data without errors", status: 200, body: `{"data":null}`, wantErr: true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -92,12 +96,14 @@ func TestExecute(t *testing.T) {
 func TestExecuteSendsRequestAndHeaders(t *testing.T) {
 	t.Parallel()
 	var gotReq gqlclient.Request
-	var gotAuth, gotCT string
-	c := serve(t, 200, `{"data":{}}`, func(r *http.Request) {
-		gotAuth = r.Header.Get("Authorization")
-		gotCT = r.Header.Get("Content-Type")
+	var gotHeaders http.Header
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotHeaders = r.Header.Clone()
 		_ = json.NewDecoder(r.Body).Decode(&gotReq)
-	})
+		_, _ = w.Write([]byte(`{"data":{}}`))
+	}))
+	t.Cleanup(srv.Close)
+	c := gqlclient.New(srv.URL, gqlclient.WithHeader("Authorization", "Bearer x"), gqlclient.WithUserAgent("portfolio-tests"))
 	_, err := gqlclient.Execute[map[string]any](context.Background(), c, gqlclient.Request{
 		Query:     "query Q($a: ID!){x(a:$a)}",
 		Variables: map[string]any{"a": "1"},
@@ -105,8 +111,15 @@ func TestExecuteSendsRequestAndHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotAuth != "Bearer x" || gotCT != "application/json" {
-		t.Fatalf("headers: auth=%q content-type=%q", gotAuth, gotCT)
+	for k, want := range map[string]string{
+		"Authorization": "Bearer x",
+		"Content-Type":  "application/json",
+		"Accept":        "application/json",
+		"User-Agent":    "portfolio-tests",
+	} {
+		if got := gotHeaders.Get(k); got != want {
+			t.Errorf("header %s = %q, want %q", k, got, want)
+		}
 	}
 	if gotReq.Variables["a"] != "1" || gotReq.Query == "" {
 		t.Fatalf("unexpected request body: %+v", gotReq)
@@ -123,8 +136,14 @@ func TestExecuteTimeout(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	c := gqlclient.New(srv.URL, gqlclient.WithTimeout(50*time.Millisecond))
-	if _, err := gqlclient.Execute[map[string]any](context.Background(), c, gqlclient.Request{Query: "{x}"}); err == nil {
-		t.Fatal("expected timeout error")
+	start := time.Now()
+	_, err := gqlclient.Execute[map[string]any](context.Background(), c, gqlclient.Request{Query: "{x}"})
+	var ne net.Error
+	if !errors.As(err, &ne) || !ne.Timeout() {
+		t.Fatalf("expected a timeout error, got %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Fatalf("timeout took %v; the 50ms client timeout was not applied", elapsed)
 	}
 }
 
@@ -138,5 +157,19 @@ func TestWithTimeoutDoesNotModifySharedClient(t *testing.T) {
 		if shared.Timeout != time.Minute {
 			t.Fatalf("shared client timeout changed to %v", shared.Timeout)
 		}
+	}
+}
+
+func TestErrorFormatting(t *testing.T) {
+	t.Parallel()
+	e := gqlclient.Error{Message: "boom", Extensions: map[string]any{"code": "BAD_USER_INPUT"}}
+	if e.Code() != "BAD_USER_INPUT" {
+		t.Errorf("Code() = %q", e.Code())
+	}
+	if (gqlclient.Error{Message: "x"}).Code() != "" {
+		t.Error("Code() without extensions should be empty")
+	}
+	if got, want := (gqlclient.Errors{e, {Message: "second"}}).Error(), "graphql: 2 error(s): boom; second"; got != want {
+		t.Errorf("Errors.Error() = %q, want %q", got, want)
 	}
 }

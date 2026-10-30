@@ -212,7 +212,10 @@ func TestSyntaxErrorReported(t *testing.T) {
 		}
 		t.Fatal(err)
 	}
-	if len(resp.Errors) == 0 {
-		t.Fatal("expected a syntax error")
+	// The wording is server-specific (this API answers with a generic "not a
+	// valid GraphQL request" message rather than "Syntax Error"), so assert
+	// that a non-empty error is reported, not its text.
+	if len(resp.Errors) == 0 || resp.Errors[0].Message == "" {
+		t.Fatalf("expected a GraphQL error for a malformed query, got %+v", resp.Errors)
 	}
 }

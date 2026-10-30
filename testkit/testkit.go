@@ -39,7 +39,7 @@ func NewClient() *gqlclient.Client {
 // Context returns a context bound to the test's lifetime with a deadline.
 func Context(t testing.TB) context.Context {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	t.Cleanup(cancel)
 	return ctx
 }
@@ -87,10 +87,12 @@ type TypeRef struct {
 	OfType *TypeRef `json:"ofType"`
 }
 
-// String renders the reference in SDL notation, e.g. "[Language!]!".
+// String renders the reference in SDL notation, e.g. "[Language!]!". A
+// wrapper nested deeper than the introspection query fetches renders as
+// "<truncated>" rather than silently dropping the inner type.
 func (r *TypeRef) String() string {
 	if r == nil {
-		return ""
+		return "<truncated>"
 	}
 	switch r.Kind {
 	case "NON_NULL":
