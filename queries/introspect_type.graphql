@@ -1,0 +1,29 @@
+query IntrospectType($name: String!) {
+  __type(name: $name) {
+    name
+    kind
+    fields {
+      name
+      type {
+        ...TypeRef
+      }
+    }
+  }
+}
+
+fragment TypeRef on __Type {
+  kind
+  name
+  ofType {
+    kind
+    name
+    ofType {
+      kind
+      name
+      ofType {
+        kind
+        name
+      }
+    }
+  }
+}

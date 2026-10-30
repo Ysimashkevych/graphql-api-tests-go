@@ -1,0 +1,6 @@
+# Intentionally invalid: "nope" does not exist on Country.
+query InvalidField {
+  country(code: "UA") {
+    nope
+  }
+}

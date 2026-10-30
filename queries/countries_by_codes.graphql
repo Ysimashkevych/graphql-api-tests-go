@@ -1,0 +1,9 @@
+query CountriesByCodes($codes: [String!]!) {
+  countries(filter: { code: { in: $codes } }) {
+    code
+    name
+    continent {
+      code
+    }
+  }
+}
